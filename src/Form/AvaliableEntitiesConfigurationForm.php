@@ -22,18 +22,27 @@ class AvaliableEntitiesConfigurationForm extends ConfigFormBase {
    * @var \Drupal\webprofiler\Entity\EntityManagerWrapper
    */
   protected $entityTypeManager;
+
+  /**
+   * {@inheritdoc}
+   */
   public function __construct(
+
     ConfigFactoryInterface $config_factory,
       EntityManagerWrapper $entity_type_manager
     ) {
+
     parent::__construct($config_factory);
-        $this->entityTypeManager = $entity_type_manager;
+
+    $this->entityTypeManager = $entity_type_manager;
   }
 
+  /**
+   * {@inheritdoc}
+   */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('config.factory'),
-            $container->get('entity_type.manager')
+      $container->get('config.factory'), $container->get('entity_type.manager')
     );
   }
 
@@ -77,7 +86,8 @@ class AvaliableEntitiesConfigurationForm extends ConfigFormBase {
           // Definition that is marked for check is checked.
           $form['available_entities']['#default_value'][] = $definition->id();
 
-        } else {
+        }
+        else {
 
           $form['available_entities']['#options'][$definition->id()] = $definition->id();
         }
@@ -86,13 +96,6 @@ class AvaliableEntitiesConfigurationForm extends ConfigFormBase {
 
 
     return parent::buildForm($form, $form_state);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function validateForm(array &$form, FormStateInterface $form_state) {
-    parent::validateForm($form, $form_state);
   }
 
   /**

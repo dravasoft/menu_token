@@ -120,18 +120,18 @@ $form_state, $form_id) {
           '#type' => 'select',
           '#title' => t("Method for %var", array('%var' => $configItem)),
           '#options' => array(
-            'none' => t("none", array(
+            'none' => t("Disabled", array(
               '%var' => 'none',
             )),
-            'context' => t("context from %var", array(
-              '%var' => $configItem,
+            'context' => t("Context from %var", array(
+              '%var' => ucfirst($configItem),
             )),
             'random' => t("Random %var", array(
-              '%var' => $configItem,
+              '%var' => ucfirst($configItem),
             )),
 
             'user_defined' => t("User defined %var", array(
-              '%var' => $configItem,
+              '%var' => ucfirst($configItem),
             )),
           ),
 
@@ -151,22 +151,28 @@ $form_state, $form_id) {
           '#attributes' => ['id' => $configItem . '_custom_entity_container'],
         ];
 
+        /* If it is rebuild from ajax */
         if (!empty($rebuild_with_custom_element)) {
+
           // Made new form element insert.
-          $form['menu_token_options'][$configItem]['custom_entity_wrapper']['custom_entity']
-            = array(
-              '#title' => t('Entity ID'),
-              '#description' => t('The id of the entity that this token handler should load.'),
-              '#type' => 'textfield',
-              '#default_value' => 1,
-            );
+          if ($rebuild_with_custom_element == 'user_defined') {
+
+            $form['menu_token_options'][$configItem]['custom_entity_wrapper'][$configItem . 'custom_entity']
+              = array(
+                '#title' => t('Entity ID'),
+                '#description' => t('The id of the entity that this token handler should load.'),
+                '#type' => 'textfield',
+                '#default_value' => 1,
+              );
+          }
+
         }
         else {
 
           // Build only if you have in config variable.
           if ($defaultSelection == 'user_defined') {
 
-            $form['menu_token_options'][$configItem]['custom_entity_wrapper']['custom_entity']
+            $form['menu_token_options'][$configItem]['custom_entity_wrapper'][$configItem . 'custom_entity']
               = array(
                 '#title' => t('Entity ID'),
                 '#description' => t('The id of the entity that this token handler should load.'),
@@ -193,14 +199,9 @@ function menu_token_custom_entity_submit($form, &$form_state) {
 
   $trigeringElement = $form_state->getTriggeringElement();
 
-  if ($trigeringElement['#value'] == 'user_defined') {
+  $form_state->set('rebuild_with_custom_element', $trigeringElement['#value']);
 
-    $myOwnVariable = '1';
-
-    $form_state->set('rebuild_with_custom_element', $myOwnVariable);
-    $form_state->setRebuild();
-
-  }
+  $form_state->setRebuild();
 }
 
 
@@ -248,9 +249,14 @@ function menu_token_form_submit($form, &$form_state) {
 
         if ($values['menu_token_type_' . $configItem] == 'user_defined') {
 
+
+          if (empty($values[$configItem . 'custom_entity'])) {
+
+            $values[$configItem . 'custom_entity'] = $_POST[$configItem . 'custom_entity'];
+          }
+
           $configArray[$configKey] = array(
-            $values['menu_token_type_' . $configItem],
-            $_POST['custom_entity'],
+            $values['menu_token_type_' . $configItem], $values[$configItem . 'custom_entity'],
           );
         }
         else {
