@@ -1,0 +1,11 @@
+
+menu_token.avaliable_entities_configuration_form:
+  path: '/admin/config/menu_token/avaliableentitiesconfiguration'
+  defaults:
+    _form: '\Drupal\menu_token\Form\AvaliableEntitiesConfigurationForm'
+    _title: 'Menu Token'
+  requirements:
+    _permission: 'access administration pages'
+  options:
+    _admin_route: TRUE
+

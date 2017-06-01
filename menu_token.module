@@ -1,0 +1,469 @@
+<?php
+
+/**
+ * @file
+ * Contains menu_token.module.
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\Url;
+use Drupal\Component\Serialization\Json;
+use Drupal\Core\Form\FormStateInterface;
+
+/**
+ * Implements hook_help().
+ */
+function menu_token_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    // Main module help for the menu_token module.
+    case 'help.page.menu_token':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('Menu Token module provides tokens, that could be used in title or in path of menu items (links). For example, if you create a menu item with path: &quot;user/[current-user:uid]&quot;, the url will be changed &quot;on fly&quot; to: &quot;user/1&quot; (assuming you are user 1).') . '</p>';
+      return $output;
+
+    default:
+  }
+}
+
+/**
+ * Implements form_id_alter().
+ */
+function menu_token_form_menu_link_content_menu_link_content_form_alter(&$form, FormStateInterface
+$form_state, $form_id) {
+
+  $form_state->setCached(FALSE);
+
+  $rebuild_with_custom_element = $form_state->get('rebuild_with_custom_element');
+
+  // Get the entity from the form state.
+  $formObject = $form_state->getFormObject()->getEntity();
+  $linkIdFromEntity = $formObject->get('link')->uri;
+  $uuid = $formObject->get('uuid')->value;
+
+  $avaliableentitiesconfiguration = \Drupal::config('menu_token.avaliableentitiesconfiguration');
+
+  $data = $avaliableentitiesconfiguration->getRawData();
+
+  $configArray = array();
+
+  if (!empty($linkIdFromEntity)) {
+
+    $configMenu = \Drupal::entityTypeManager()->getStorage('link_configuration_storage')->load($uuid);
+    if (!empty($configMenu)) {
+
+      $configArray = unserialize($configMenu->get('configurationSerialized'));
+
+    }
+    else {
+
+      $configArray = array("menu_token_enabled" => 0);
+    }
+  }
+
+  $form['menu_token_enabled'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('<strong>Use tokens</strong> in title and in path.'),
+    '#description' => t('Active this option in order to use Menu token.'),
+    '#default_value' => $configArray['menu_token_enabled'],
+    '#weight' => -3,
+  );
+
+  $form['menu_token_options'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Menu Token options'),
+    '#collapsible' => TRUE,
+    '#weight' => -2,
+    '#states' => array(
+      'visible' => array(
+        ':input[name="menu_token_enabled"]' => array('checked' => TRUE),
+      ),
+    ),
+  );
+
+  $form['menu_token_options']['menu_token_modal_link'] = array(
+    '#title' => t('Browse available tokens.'),
+    '#type' => 'link',
+    '#url' => Url::fromRoute('help.page', array("name" => "token")),
+
+    '#attributes' => array(
+      'class' => ['use-ajax'],
+      'data-dialog-type' => 'modal',
+      'data-dialog-options' => Json::encode(['width' => 400, 'height' => 700]),
+    ),
+
+    '#states' => array(
+      'visible' => array(
+        ':input[name="menu_token_enabled"]' => array('checked' => TRUE),
+      ),
+    ),
+  );
+
+  // If entities exist and item is enabled.
+  if (!empty($data['available_entities'])) {
+
+    foreach ($data['available_entities'] as $configKey => $configItem) {
+
+      if ($configItem !== 0) {
+
+        $defaultValueArray = array("none");
+
+        if (!empty($configArray[$configItem])) {
+
+          $defaultValueArray = array($configArray[$configItem]);
+        }
+
+        $defaultSelection = $defaultValueArray[0][0];
+
+        $form['menu_token_options'][$configItem]['menu_token_type_' . $configItem] = array(
+          '#type' => 'select',
+          '#title' => t("Method for %var", array('%var' => $configItem)),
+          '#options' => array(
+            'none' => t("none", array(
+              '%var' => 'none',
+            )),
+            'context' => t("context from %var", array(
+              '%var' => $configItem,
+            )),
+            'random' => t("Random %var", array(
+              '%var' => $configItem,
+            )),
+
+            'user_defined' => t("User defined %var", array(
+              '%var' => $configItem,
+            )),
+          ),
+
+          '#default_value' => "$defaultSelection",
+
+          '#executes_submit_callback' => TRUE,
+          '#submit' => array('menu_token_custom_entity_submit'),
+          '#ajax' => array(
+            'callback' => 'menu_token_custom_entity_callback',
+            'wrapper' => $configItem . '_custom_entity_container',
+          ),
+        );
+
+        // Define the container.
+        $form['menu_token_options'][$configItem]['custom_entity_wrapper'] = [
+          '#type' => 'container',
+          '#attributes' => ['id' => $configItem . '_custom_entity_container'],
+        ];
+
+        if (!empty($rebuild_with_custom_element)) {
+          // Made new form element insert.
+          $form['menu_token_options'][$configItem]['custom_entity_wrapper']['custom_entity']
+            = array(
+              '#title' => t('Entity ID'),
+              '#description' => t('The id of the entity that this token handler should load.'),
+              '#type' => 'textfield',
+              '#default_value' => 1,
+            );
+        }
+        else {
+
+          // Build only if you have in config variable.
+          if ($defaultSelection == 'user_defined') {
+
+            $form['menu_token_options'][$configItem]['custom_entity_wrapper']['custom_entity']
+              = array(
+                '#title' => t('Entity ID'),
+                '#description' => t('The id of the entity that this token handler should load.'),
+                '#type' => 'textfield',
+                '#default_value' => $defaultValueArray[0][1],
+              );
+
+          }
+
+        }
+
+      }
+    }
+
+  }
+  // Submit handler.
+  $form['actions']['submit']['#submit'][] = 'menu_token_form_submit';
+}
+
+/**
+ * Implements form_id_alter().
+ */
+function menu_token_custom_entity_submit($form, &$form_state) {
+
+  $trigeringElement = $form_state->getTriggeringElement();
+
+  if ($trigeringElement['#value'] == 'user_defined') {
+
+    $myOwnVariable = '1';
+
+    $form_state->set('rebuild_with_custom_element', $myOwnVariable);
+    $form_state->setRebuild();
+
+  }
+}
+
+
+/**
+ * Ajax callback for the method select dropdown.
+ */
+function menu_token_custom_entity_callback($form, &$form_state) {
+
+  $trigeringElement = $form_state->getTriggeringElement();
+
+  if ($trigeringElement['#value'] == 'user_defined') {
+
+    $element = $trigeringElement['#array_parents'][1];
+    return $form['menu_token_options']["$element"]['custom_entity_wrapper'];
+
+  }
+  else {
+
+    // Return just the wrapper. Form was rebuild in the background.
+    $element = $trigeringElement['#array_parents'][1];
+    return $form['menu_token_options']["$element"]['custom_entity_wrapper'];
+
+  }
+
+}
+
+/**
+ * {@inheritdoc}
+ */
+function menu_token_form_submit($form, &$form_state) {
+
+  $values = $form_state->getValues();
+
+  $avaliableentitiesconfiguration = \Drupal::config('menu_token.avaliableentitiesconfiguration');
+
+  $data = $avaliableentitiesconfiguration->getRawData();
+
+  $configArray = array("menu_token_enabled" => $values['menu_token_enabled']);
+
+  foreach ($data['available_entities'] as $configKey => $configItem) {
+
+    if ($configItem !== 0) {
+
+      if (isset($values['menu_token_type_' . $configItem])) {
+
+        if ($values['menu_token_type_' . $configItem] == 'user_defined') {
+
+          $configArray[$configKey] = array(
+            $values['menu_token_type_' . $configItem],
+            $_POST['custom_entity'],
+          );
+        }
+        else {
+
+          $configArray[$configKey] = array($values['menu_token_type_' . $configItem], 0);
+        }
+      }
+    }
+  }
+
+  // If it does not exist is should not be loaded.
+  if ($values['menu_token_enabled'] == 0) {
+
+
+    $formObject = $form_state->getFormObject()->getEntity();
+    $uuid = $formObject->get('uuid')->value;
+
+    // Have to check if entity exist.
+    $configMenu = \Drupal::entityTypeManager()->getStorage('link_configuration_storage')->load($uuid);
+    if (!empty($configMenu)) {
+
+      // Delete.
+      $configMenu->delete();
+    }
+
+  }
+  else {
+
+    $formObject = $form_state->getFormObject()->getEntity();
+    $uuid = $formObject->get('uuid')->value;
+
+    // Have to check if entity exist.
+    $configMenu = \Drupal::entityTypeManager()->getStorage('link_configuration_storage')->load($uuid);
+
+    if (!empty($configMenu)) {
+
+      $configMenu->set("linkid", (string) $values['link'][0]['uri']);
+      $configMenu->set("configurationSerialized", serialize($configArray));
+      $configMenu->save();
+
+    }
+    else {
+
+      $configMenu = \Drupal::entityTypeManager()->getStorage('link_configuration_storage')->create(
+        array(
+          'id' => $uuid,
+          'label' => 'Menu token link configuration',
+          'linkid' => (string) $values['link'][0]['uri'],
+          'configurationSerialized' => serialize($configArray),
+        ));
+      $configMenu->save();
+    }
+
+    // Rebuild the router. So I can listen to event and change to reutes.
+    $reuteBuilder = \Drupal::service('router.builder');
+    $reuteBuilder->rebuild();
+
+  }
+}
+
+
+/**
+ * Replace links with tokens.
+ */
+function replace_links_with_tokens($token_service, $replaceWith, $relavantLink, &$links) {
+
+
+  $uuIdFromLink = substr($relavantLink['id'], strpos($relavantLink['id'], ":") + 1, strlen($relavantLink['id']));
+  $configMenu = \Drupal::entityTypeManager()->getStorage('link_configuration_storage')->load($uuIdFromLink);
+
+
+  // If the config menu is not empty we will set the link as defined in
+  // configuration.
+  if (!empty($configMenu)) {
+
+    // Must get relavant object, depending on configuration.
+    $configurationArray = unserialize($configMenu->configurationSerialized);
+
+    // Fist I must know what I have.
+    $scan = $token_service->scan($links[$relavantLink['id']]["$replaceWith"]);
+    $typeInformation = key($scan);
+
+    switch ($typeInformation) {
+
+      case "user":
+
+        if (!empty($configurationArray[$typeInformation][0])) {
+
+          switch ($configurationArray[$typeInformation][0]) {
+
+            case "none":
+              // If it is none, do nothing what other point is in string
+              // none?
+              break;
+
+            case "context":
+
+              $links[$relavantLink['id']]["$replaceWith"] = $token_service->replace(
+                $links[$relavantLink['id']]["$replaceWith"],
+                array('user' => \Drupal::currentUser()));
+
+              break;
+
+            case "random":
+
+
+              $query = \Drupal::entityQuery('user');
+              $userIds = $query->execute();
+
+              // Pick one random user.
+              $randomId = array_rand($userIds, 1);
+
+              $randomUser = \Drupal::entityTypeManager()->getStorage('user')
+                ->load($randomId);
+
+              $links[$relavantLink['id']]["$replaceWith"] = $token_service->replace(
+                $links[$relavantLink['id']]["$replaceWith"],
+                array('user' => $randomUser)
+              );
+              break;
+
+            case "user_defined":
+
+              $adminDefindVariable = $configurationArray[$typeInformation][1];
+
+              $randomUser = \Drupal::entityTypeManager()->getStorage('user')
+                ->load($adminDefindVariable);
+
+              $links[$relavantLink['id']]["$replaceWith"] =
+                $token_service->replace($links[$relavantLink['id']]["$replaceWith"], array('user' => $randomUser));
+              break;
+
+            default:
+              break;
+          }
+
+        }
+
+        break;
+
+      case "node":
+
+        if (!empty($configurationArray[$typeInformation][0])) {
+
+          switch ($configurationArray[$typeInformation][0]) {
+
+            case "none":
+              // If it is none, do nothing what other point is in string
+              // none?
+              break;
+
+            case "contex":
+              break;
+
+            case "random":
+              // Get random node.
+              $query = \Drupal::entityQuery('node');
+              $userIds = $query->execute();
+
+              // Pick one random node.
+              $randomId = array_rand($userIds, 1);
+
+              $randomNode = \Drupal::entityTypeManager()->getStorage('node')
+                ->load($randomId);
+
+              $links[$relavantLink['id']]["$replaceWith"] = $token_service->replace($links[$relavantLink['id']]["$replaceWith"],
+                array('node' => $randomNode));
+              break;
+
+            case "user_defined":
+
+              $adminDefindVariable = $configurationArray[$typeInformation][1];
+
+              $adminDefined = \Drupal::entityTypeManager()->getStorage('node')
+                ->load($adminDefindVariable);
+
+              $links[$relavantLink['id']]["$replaceWith"] =
+                $token_service->replace($links[$relavantLink['id']]["$replaceWith"], array('node' => $adminDefined));
+
+              break;
+
+            default:
+              break;
+
+          }
+
+        }
+        break;
+
+    }
+  }
+
+}
+
+/**
+ * Replace links with tokens.
+ */
+function menu_token_menu_links_discovered_alter(&$links) {
+
+  // Load configuration from entity.
+  $relavantLinks = array_filter($links, function ($k) {
+    return strpos($k, 'menu_link_content:') === 0;
+  }, ARRAY_FILTER_USE_KEY);
+
+
+  $token_service = \Drupal::token();
+
+  foreach ($relavantLinks as $relavantLink) {
+
+    replace_links_with_tokens($token_service, "url", $relavantLink,
+      $links);
+
+    replace_links_with_tokens($token_service, "title", $relavantLink,
+      $links);
+  }
+  // Want to be 1000% sure menu is updated I will fire menu rebuild service.
+}
