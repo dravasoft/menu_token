@@ -1,4 +1,3 @@
-
 menu_token.avaliable_entities_configuration_form:
   path: '/admin/config/menu_token/avaliableentitiesconfiguration'
   defaults:

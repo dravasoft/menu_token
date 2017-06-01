@@ -2,15 +2,7 @@ menu_token.avaliable_entities_configuration_form:
   title: 'Menu token, used entities.'
   route_name: menu_token.avaliable_entities_configuration_form
   description: 'A description for the menu entry'
-  parent: system.admin_structure
+  parent: system.modules_list
   weight: 99
 
-
-# Link configuration storage menu items definition
-entity.link_configuration_storage.collection:
-  title: 'Menu token, link configuration storage'
-  route_name: entity.link_configuration_storage.collection
-  description: 'List Link configuration storage (bundles)'
-  parent: system.admin_structure
-  weight: 99
 

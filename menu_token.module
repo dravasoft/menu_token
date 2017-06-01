@@ -32,6 +32,7 @@ function menu_token_help($route_name, RouteMatchInterface $route_match) {
 function menu_token_form_menu_link_content_menu_link_content_form_alter(&$form, FormStateInterface
 $form_state, $form_id) {
 
+
   $form_state->setCached(FALSE);
 
   $rebuild_with_custom_element = $form_state->get('rebuild_with_custom_element');
@@ -467,5 +468,3 @@ function menu_token_menu_links_discovered_alter(&$links) {
   }
   // Want to be 1000% sure menu is updated I will fire menu rebuild service.
 }
-
-//Test
