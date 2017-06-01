@@ -62,19 +62,28 @@ $form_state, $form_id) {
     }
   }
 
+  if (!empty($form['link']['weight'])) {
+
+    $linkWeight = $form['link']['weight'];
+  }
+  else {
+
+    $linkWeight = -2;
+  }
+
   $form['menu_token_enabled'] = array(
     '#type' => 'checkbox',
     '#title' => t('<strong>Use tokens</strong> in title and in path.'),
     '#description' => t('Active this option in order to use Menu token.'),
     '#default_value' => $configArray['menu_token_enabled'],
-    '#weight' => -3,
+    '#weight' => $linkWeight,
   );
 
   $form['menu_token_options'] = array(
     '#type' => 'fieldset',
     '#title' => t('Menu Token options'),
     '#collapsible' => TRUE,
-    '#weight' => -2,
+    '#weight' => $linkWeight,
     '#states' => array(
       'visible' => array(
         ':input[name="menu_token_enabled"]' => array('checked' => TRUE),
@@ -118,7 +127,7 @@ $form_state, $form_id) {
 
         $form['menu_token_options'][$configItem]['menu_token_type_' . $configItem] = array(
           '#type' => 'select',
-          '#title' => t("Method for %var", array('%var' => $configItem)),
+          '#title' => t("Method for %var", array('%var' => ucfirst($configItem))),
           '#options' => array(
             'none' => t("Disabled", array(
               '%var' => 'none',

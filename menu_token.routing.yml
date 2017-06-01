@@ -1,5 +1,5 @@
 menu_token.avaliable_entities_configuration_form:
-  path: '/admin/config/menu_token/avaliableentitiesconfiguration'
+  path: '/admin/config/menu_token'
   defaults:
     _form: '\Drupal\menu_token\Form\AvaliableEntitiesConfigurationForm'
     _title: 'Menu Token'
