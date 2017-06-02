@@ -9,6 +9,7 @@ use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Url;
 use Drupal\Component\Serialization\Json;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\BubbleableMetadata;
 
 /**
  * Implements hook_help().
@@ -334,6 +335,215 @@ function menu_token_form_submit($form, &$form_state) {
   }
 }
 
+/**
+ * {@inheritdoc}
+ */
+function menu_token_tokens($type, $tokens, array $data, array $options, BubbleableMetadata $bubbleable_metadata) {
+
+
+  if (!empty($data['configuration_array'])) {
+
+    $token_service = \Drupal::token();
+    // I am forced to do that by drupal...
+    $data = $data['configuration_array'];
+
+    $replacements = array();
+
+    // Remove strange types.
+    if (!array_key_exists($type, $tokens)) {
+
+      foreach ($tokens as $key => $t) {
+        // Is this type even supported by my type.
+        if (!empty($data['remove_if_replacement_is_not_present']) &&
+          $data['remove_if_replacement_is_not_present'] == 1) {
+
+          $replacements[$tokens[$key]] = '';
+          // If the token is replaced it should be
+          // replaced with empty value.
+        }
+      }
+    }
+
+
+    foreach ($tokens as $key => $t) {
+
+      // Fist I must know what I have.
+      $scan = $token_service->scan($t);
+      $type = key($scan);
+
+
+      switch ($type) {
+
+        case "user":
+
+          if (!empty($data[$type][0])) {
+
+            switch ($data[$type][0]) {
+
+              case "none":
+                // If it is none, do nothing what other point is in string
+                // none?
+                break;
+
+              case "context":
+
+                $g = $token_service->generate('user', array($key => $t), array('user' => \Drupal::currentUser()), array(), new BubbleableMetadata());
+
+                if (empty($g)) {
+
+                  if (!empty($data['remove_if_replacement_is_not_present'])
+                    && $data['remove_if_replacement_is_not_present'] == 1) {
+
+                    $g = array($t => '');
+                    // If the token is replaced it
+                    // replaced with empty value.
+                  }
+                }
+                $replacements = array_merge($replacements, $g);
+
+                break;
+
+              case "random":
+
+                $query = \Drupal::entityQuery('user');
+                $userIds = $query->execute();
+
+                // Pick one random user.
+                $randomId = array_rand($userIds, 1);
+
+                $randomUser = \Drupal::entityTypeManager()->getStorage('user')
+                  ->load($randomId);
+
+                $g = $token_service->generate('user', array($key => $t), array('user' => $randomUser), array(), new BubbleableMetadata());
+
+
+                if (empty($g)) {
+
+                  if (!empty($data['remove_if_replacement_is_not_present']) && $data['remove_if_replacement_is_not_present'] == 1) {
+
+                    $g = array($t => '');
+                  }
+                }
+
+
+                $replacements = array_merge($replacements, $g);
+
+                break;
+
+              case "user_defined":
+
+
+                $adminDefindVariable = $data[$type][1];
+
+                $randomUser = \Drupal::entityTypeManager()->getStorage('user')
+                  ->load($adminDefindVariable);
+
+                $g = $token_service->generate('user', array($key => $t), array('user' => $randomUser), array(), new BubbleableMetadata());
+
+                if (empty($g)) {
+
+                  if (!empty($data['remove_if_replacement_is_not_present']) && $data['remove_if_replacement_is_not_present'] == 1) {
+
+                    $g = array($t => '');
+                  }
+                }
+
+
+                $replacements = array_merge($replacements, $g);
+
+                break;
+
+              default:
+                break;
+            }
+
+          }
+
+          break;
+
+        case "node":
+
+          if (!empty($data[$type][0])) {
+
+            switch ($data[$type][0]) {
+
+              case "none":
+                // If it is none, do nothing what other point is in string
+                // none?
+                break;
+
+              case "contex":
+                break;
+
+              case "random":
+                // Get random node.
+                $query = \Drupal::entityQuery('node');
+                $userIds = $query->execute();
+
+                // Pick one random node.
+                $randomId = array_rand($userIds, 1);
+
+                $randomNode = \Drupal::entityTypeManager()->getStorage('node')
+                  ->load($randomId);
+
+                $g = $token_service->generate('node', array($key => $t),
+                  array('node' => $randomNode), array(), new BubbleableMetadata()
+                );
+
+
+                if (empty($g)) {
+
+                  if (!empty($data['remove_if_replacement_is_not_present'])
+                    && $data['remove_if_replacement_is_not_present'] == 1) {
+
+                    $g = array($t => '');
+                  }
+                }
+
+
+                $replacements = array_merge($replacements, $g);
+
+                break;
+
+              case "user_defined":
+
+                $adminDefindVariable = $data[$type][1];
+
+                $adminDefined = \Drupal::entityTypeManager()->getStorage('node')
+                  ->load($adminDefindVariable);
+
+                $g = $token_service->generate('node', array($key => $t), array('node' => $adminDefined), array(), new BubbleableMetadata());
+
+                if (empty($g)) {
+
+                  if (!empty($data['remove_if_replacement_is_not_present'])
+                    && $data['remove_if_replacement_is_not_present'] == 1) {
+
+                    $g = array($t => '');
+
+                  }
+                }
+
+                $replacements = array_merge($replacements, $g);
+
+                break;
+
+              default:
+                break;
+
+            }
+          }
+          break;
+
+      }
+
+    }
+
+    return $replacements;
+
+  }
+}
+
 
 /**
  * Replace links with tokens.
@@ -345,125 +555,12 @@ function replace_links_with_tokens($token_service, $replaceWith, $relavantLink, 
   $configMenu = \Drupal::entityTypeManager()->getStorage('link_configuration_storage')->load($uuIdFromLink);
 
 
-  // If the config menu is not empty we will set the link as defined in
-  // configuration.
+  // Replace nothing to mess here all action is in hook.
   if (!empty($configMenu)) {
-
-    // Must get relavant object, depending on configuration.
     $configurationArray = unserialize($configMenu->configurationSerialized);
 
-    // Fist I must know what I have.
-    $scan = $token_service->scan($links[$relavantLink['id']]["$replaceWith"]);
-    $typeInformation = key($scan);
+    $links[$relavantLink['id']]["$replaceWith"] = $token_service->replace($links[$relavantLink['id']]["$replaceWith"], array("configuration_array" => $configurationArray));
 
-    switch ($typeInformation) {
-
-      case "user":
-
-        if (!empty($configurationArray[$typeInformation][0])) {
-
-          switch ($configurationArray[$typeInformation][0]) {
-
-            case "none":
-              // If it is none, do nothing what other point is in string
-              // none?
-              break;
-
-            case "context":
-
-              $links[$relavantLink['id']]["$replaceWith"] = $token_service->replace(
-                $links[$relavantLink['id']]["$replaceWith"],
-                array('user' => \Drupal::currentUser()));
-
-              break;
-
-            case "random":
-
-
-              $query = \Drupal::entityQuery('user');
-              $userIds = $query->execute();
-
-              // Pick one random user.
-              $randomId = array_rand($userIds, 1);
-
-              $randomUser = \Drupal::entityTypeManager()->getStorage('user')
-                ->load($randomId);
-
-              $links[$relavantLink['id']]["$replaceWith"] = $token_service->replace(
-                $links[$relavantLink['id']]["$replaceWith"],
-                array('user' => $randomUser)
-              );
-              break;
-
-            case "user_defined":
-
-              $adminDefindVariable = $configurationArray[$typeInformation][1];
-
-              $randomUser = \Drupal::entityTypeManager()->getStorage('user')
-                ->load($adminDefindVariable);
-
-              $links[$relavantLink['id']]["$replaceWith"] =
-                $token_service->replace($links[$relavantLink['id']]["$replaceWith"], array('user' => $randomUser));
-              break;
-
-            default:
-              break;
-          }
-
-        }
-
-        break;
-
-      case "node":
-
-        if (!empty($configurationArray[$typeInformation][0])) {
-
-          switch ($configurationArray[$typeInformation][0]) {
-
-            case "none":
-              // If it is none, do nothing what other point is in string
-              // none?
-              break;
-
-            case "contex":
-              break;
-
-            case "random":
-              // Get random node.
-              $query = \Drupal::entityQuery('node');
-              $userIds = $query->execute();
-
-              // Pick one random node.
-              $randomId = array_rand($userIds, 1);
-
-              $randomNode = \Drupal::entityTypeManager()->getStorage('node')
-                ->load($randomId);
-
-              $links[$relavantLink['id']]["$replaceWith"] = $token_service->replace($links[$relavantLink['id']]["$replaceWith"],
-                array('node' => $randomNode));
-              break;
-
-            case "user_defined":
-
-              $adminDefindVariable = $configurationArray[$typeInformation][1];
-
-              $adminDefined = \Drupal::entityTypeManager()->getStorage('node')
-                ->load($adminDefindVariable);
-
-              $links[$relavantLink['id']]["$replaceWith"] =
-                $token_service->replace($links[$relavantLink['id']]["$replaceWith"], array('node' => $adminDefined));
-
-              break;
-
-            default:
-              break;
-
-          }
-
-        }
-        break;
-
-    }
   }
 
 }
@@ -486,8 +583,9 @@ function menu_token_menu_links_discovered_alter(&$links) {
     replace_links_with_tokens($token_service, "url", $relavantLink,
       $links);
 
+
     replace_links_with_tokens($token_service, "title", $relavantLink,
       $links);
   }
-  // Want to be 1000% sure menu is updated I will fire menu rebuild service.
+
 }
