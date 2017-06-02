@@ -7,7 +7,7 @@ use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Drupal\webprofiler\Entity\EntityManagerWrapper;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 
 /**
  * Class AvaliableEntitiesConfigurationForm.
@@ -19,7 +19,7 @@ class AvaliableEntitiesConfigurationForm extends ConfigFormBase {
   /**
    * Drupal\webprofiler\Entity\EntityManagerWrapper definition.
    *
-   * @var \Drupal\webprofiler\Entity\EntityManagerWrapper
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface;
    */
   protected $entityTypeManager;
 
@@ -29,7 +29,7 @@ class AvaliableEntitiesConfigurationForm extends ConfigFormBase {
   public function __construct(
 
     ConfigFactoryInterface $config_factory,
-      EntityManagerWrapper $entity_type_manager
+    EntityTypeManagerInterface $entity_type_manager
     ) {
 
     parent::__construct($config_factory);
@@ -74,7 +74,7 @@ class AvaliableEntitiesConfigurationForm extends ConfigFormBase {
       '#description' => $this->t('Available entities'),
     ];
     $entity_type_definations = $this->entityTypeManager->getDefinitions();
-    /* @var $definition EntityTypeInterface */
+    /* @var $definition EntityTypeManagerInterface */
     foreach ($entity_type_definations as $definition) {
 
       if ($definition instanceof ContentEntityType) {
