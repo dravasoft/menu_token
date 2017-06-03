@@ -10,11 +10,11 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 
 /**
- * Class AvaliableEntitiesConfigurationForm.
+ * Class AvailableEntitiesConfigurationForm.
  *
  * @package Drupal\menu_token\Form
  */
-class AvaliableEntitiesConfigurationForm extends ConfigFormBase {
+class AvailableEntitiesConfigurationForm extends ConfigFormBase {
 
   /**
    * Drupal\webprofiler\Entity\EntityManagerWrapper definition.
@@ -51,7 +51,7 @@ class AvaliableEntitiesConfigurationForm extends ConfigFormBase {
    */
   protected function getEditableConfigNames() {
     return [
-      'menu_token.avaliableentitiesconfiguration',
+      'menu_token.availableentitiesconfiguration',
     ];
   }
 
@@ -59,7 +59,7 @@ class AvaliableEntitiesConfigurationForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function getFormId() {
-    return 'avaliable_entities_configuration_form';
+    return 'available_entities_configuration_form';
   }
 
   /**
@@ -67,15 +67,15 @@ class AvaliableEntitiesConfigurationForm extends ConfigFormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
 
-    $config = $this->config('menu_token.avaliableentitiesconfiguration');
+    $config = $this->config('menu_token.availableentitiesconfiguration');
     $form['available_entities'] = [
       '#type' => 'checkboxes',
       '#title' => $this->t('Available entities'),
       '#description' => $this->t('Available entities'),
     ];
-    $entity_type_definations = $this->entityTypeManager->getDefinitions();
+    $entity_type_definitions = $this->entityTypeManager->getDefinitions();
     /* @var $definition EntityTypeManagerInterface */
-    foreach ($entity_type_definations as $definition) {
+    foreach ($entity_type_definitions as $definition) {
 
       if ($definition instanceof ContentEntityType) {
 
@@ -94,7 +94,6 @@ class AvaliableEntitiesConfigurationForm extends ConfigFormBase {
       }
     }
 
-
     return parent::buildForm($form, $form_state);
   }
 
@@ -105,7 +104,7 @@ class AvaliableEntitiesConfigurationForm extends ConfigFormBase {
     parent::submitForm($form, $form_state);
 
     // Store to configuration.
-    $this->config('menu_token.avaliableentitiesconfiguration')
+    $this->config('menu_token.availableentitiesconfiguration')
       ->set('available_entities', $form_state->getValue('available_entities'))
       ->save();
   }

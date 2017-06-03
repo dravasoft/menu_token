@@ -4,6 +4,7 @@ namespace Drupal\menu_token;
 
 use Drupal\Core\Config\Entity\ConfigEntityListBuilder;
 use Drupal\Core\Entity\EntityInterface;
+use Drupal\menu_token\Entity\LinkConfigurationStorage;
 
 /**
  * Provides a listing of Link configuration storage entities.
@@ -26,7 +27,7 @@ class LinkConfigurationStorageListBuilder extends ConfigEntityListBuilder {
    * {@inheritdoc}
    */
   public function buildRow(EntityInterface $entity) {
-
+    /** @var LinkConfigurationStorage $entity */
     $row['label'] = $entity->label();
     $row['id'] = $entity->id();
     $row['linkid'] = $entity->linkid;
@@ -34,7 +35,6 @@ class LinkConfigurationStorageListBuilder extends ConfigEntityListBuilder {
 
     // You probably want a few more properties here...
     return $row + parent::buildRow($entity);
-
   }
 
 }
