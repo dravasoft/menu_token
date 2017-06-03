@@ -10,11 +10,9 @@ menu_token.link_configuration_storage.*:
       label: 'Label'
     uuid:
       type: string
-
     linkid:
       type: string
       label: 'linkid'
-
     configurationSerialized:
       type: string
       label: 'configurationSerialized'
