@@ -248,8 +248,8 @@ function menu_token_form_submit($form, &$form_state) {
   $data = $availableEntitiesConfiguration->getRawData();
 
   $configArray = [
-      "menu_token_enabled" => $values['menu_token_enabled'],
-      "remove_if_replacement_is_not_present" => $values['remove_if_replacement_is_not_present']
+    "menu_token_enabled" => $values['menu_token_enabled'],
+    "remove_if_replacement_is_not_present" => $values['remove_if_replacement_is_not_present']
   ];
 
   foreach ($data['available_entities'] as $configKey => $configItem) {
@@ -330,7 +330,7 @@ function menu_token_tokens($type, $tokens, array $data, array $options, Bubbleab
 
     // Flag to know what to do with tokens in case where replacement is not found
     $removeIfNotPresent = !empty($data['remove_if_replacement_is_not_present']) &&
-        $data['remove_if_replacement_is_not_present'] == 1;
+      $data['remove_if_replacement_is_not_present'] == 1;
 
     $replacements = [];
 
@@ -352,136 +352,88 @@ function menu_token_tokens($type, $tokens, array $data, array $options, Bubbleab
       $scan = $token_service->scan($t);
       $type = key($scan);
 
+      if (!empty($data[$type][0])) {
+        // Make type agnostic so it can handle any type.
+        switch ($data[$type][0]) {
 
-      switch ($type) {
+          // Nothing to do.
+          case "none":
+            break;
 
-        case "user":
+          case "context":
 
-          if (!empty($data[$type][0])) {
+            // Context is something that is giving me huge trouble...
+            /*$contextManipulator = new Context(new ContextDefinition());
 
-            switch ($data[$type][0]) {
+            $test = $contextManipulator->getContextValue();
 
-              case "none": // nothing to do
-                break;
+            $g = $token_service->generate($type, [$key => $t], [$type => $contextManipulator->getContextValue()], [], new BubbleableMetadata());
 
-              case "context":
+            if (empty($g) && $removeIfNotPresent) {
+              // If the token is replaced, it's replaced with empty value.
+              $g = [$t => ''];
+            }
+            $replacements = array_merge($replacements, $g);*/
+            if($type == "user") {
 
-                $g = $token_service->generate('user', [$key => $t], ['user' => \Drupal::currentUser()], [], new BubbleableMetadata());
+              $g = $token_service->generate('user', [$key => $t], ['user' => \Drupal::currentUser()], [], new BubbleableMetadata());
 
-                if (empty($g) && $removeIfNotPresent) {
-                  // If the token is replaced, it's replaced with empty value.
-                  $g = [$t => ''];
-                }
-                $replacements = array_merge($replacements, $g);
+              if (empty($g) && $removeIfNotPresent) {
+                // If the token is replaced, it's replaced with empty value.
+                $g = [$t => ''];
+              }
+              $replacements = array_merge($replacements, $g);
 
-                break;
-
-              case "random":
-
-                $query = \Drupal::entityQuery('user');
-                $userIds = $query->execute();
-
-                // Pick one random user.
-                $randomId = array_rand($userIds, 1);
-
-                $randomUser = \Drupal::entityTypeManager()->getStorage('user')
-                  ->load($randomId);
-
-                $g = $token_service->generate('user', [$key => $t], ['user' => $randomUser], [], new BubbleableMetadata());
-
-
-                if (empty($g) && $removeIfNotPresent) {
-
-                  $g = [$t => ''];
-                }
-
-                $replacements = array_merge($replacements, $g);
-
-                break;
-
-              case "user_defined":
-
-
-                $adminDefinedVariable = $data[$type][1];
-
-                $definedUser = \Drupal::entityTypeManager()->getStorage('user')
-                  ->load($adminDefinedVariable);
-
-                $g = $token_service->generate('user', [$key => $t], ['user' => $definedUser], [], new BubbleableMetadata());
-
-                if (empty($g) && $removeIfNotPresent) {
-
-                  $g = [$t => ''];
-                }
-
-                $replacements = array_merge($replacements, $g);
-
-                break;
-
-              default:
-                break;
             }
 
-          }
-
-          break;
-
-        case "node":
-
-          if (!empty($data[$type][0])) {
-
-            switch ($data[$type][0]) {
-
-              case "none": // nothing to do
-                break;
-
-              case "context": // todo
-                break;
-
-              case "random":
-                // Get random node.
-                $query = \Drupal::entityQuery('node');
-                $userIds = $query->execute();
-
-                // Pick one random node.
-                $randomId = array_rand($userIds, 1);
-
-                $randomNode = \Drupal::entityTypeManager()->getStorage('node')
-                  ->load($randomId);
-
-                $g = $token_service->generate('node', [$key => $t], ['node' => $randomNode], [], new BubbleableMetadata());
+            break;
 
 
-                if (empty($g) && $removeIfNotPresent) {
+          case "random":
 
-                  $g = [$t => ''];
-                }
+            $query = \Drupal::entityQuery($type);
+            $userIds = $query->execute();
 
-                $replacements = array_merge($replacements, $g);
+            // Pick one random user.
+            $randomId = array_rand($userIds, 1);
 
-                break;
+            $randomVar = \Drupal::entityTypeManager()->getStorage($type)
+              ->load($randomId);
 
-              case "user_defined":
+            $g = $token_service->generate($type, [$key => $t], [$type => $randomVar], [], new BubbleableMetadata());
 
-                $adminDefinedVariable = $data[$type][1];
 
-                $adminDefined = \Drupal::entityTypeManager()->getStorage('node')
-                  ->load($adminDefinedVariable);
+            if (empty($g) && $removeIfNotPresent) {
 
-                $g = $token_service->generate('node', [$key => $t], ['node' => $adminDefined], [], new BubbleableMetadata());
-
-                if (empty($g) && $removeIfNotPresent) {
-
-                  $g = [$t => ''];
-                }
-
-                $replacements = array_merge($replacements, $g);
-
-                break;
-
+              $g = [$t => ''];
             }
-          }
-          break;
+
+            $replacements = array_merge($replacements, $g);
+
+            break;
+
+          case "user_defined":
+
+            $adminDefinedVariable = $data[$type][1];
+
+            $dynamicVar = \Drupal::entityTypeManager()->getStorage($type)
+              ->load($adminDefinedVariable);
+
+            $g = $token_service->generate($type, [$key => $t], [$type => $dynamicVar], [], new BubbleableMetadata());
+
+            if (empty($g) && $removeIfNotPresent) {
+
+              $g = [$t => ''];
+            }
+
+            $replacements = array_merge($replacements, $g);
+
+            break;
+
+          default:
+            break;
+
+        }
 
       }
 
